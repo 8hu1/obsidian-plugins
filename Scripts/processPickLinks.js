@@ -115,8 +115,9 @@ async function processPickLinks(tp) {
                 }
             }
 
-            // 元ファイルは削除せず保持
-            console.log(`Processed: ${file.name}`);
+            // 元ファイルを削除
+            await vault.delete(file);
+            console.log(`Deleted: ${file.name}`);
 
         } catch (e) {
             console.error(`Error processing file ${file.name}:`, e);
