@@ -34,29 +34,52 @@ async function getSettings() {
 
 async function callOpenAI(prompt, settings) {
     try {
-        const response = await requestUrl({
-            url: "https://api.openai.com/v1/chat/completions",
-            method: "POST",
-            headers: {
-                "Content-Type": "application/json",
-                "Authorization": `Bearer ${settings.openai_api_key}`
-            },
-            body: JSON.stringify({
-                model: settings.openai_model,
-                messages: [
-                    {
-                        role: "system",
-                        content: "あなたは優秀な要約アシスタントです。日本語のX投稿を分析し、指定されたJSON形式で結果を返します。"
-                    },
-                    {
-                        role: "user",
-                        content: prompt
-                    }
-                ],
-                temperature: 0.3,
-                max_tokens: settings.max_tokens
-            })
-        });
+        // GPT-5シリーズはResponses APIを使用
+        const isGpt5 = settings.openai_model.startsWith("gpt-5");
+
+        let response;
+        if (isGpt5) {
+            // Responses API形式
+            response = await requestUrl({
+                url: "https://api.openai.com/v1/responses",
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    "Authorization": `Bearer ${settings.openai_api_key}`
+                },
+                body: JSON.stringify({
+                    model: settings.openai_model,
+                    instructions: "あなたは優秀な要約アシスタントです。日本語のX投稿を分析し、指定されたJSON形式で結果を返します。",
+                    input: prompt,
+                    max_output_tokens: settings.max_tokens
+                })
+            });
+        } else {
+            // Chat Completions API形式 (GPT-4系以前)
+            response = await requestUrl({
+                url: "https://api.openai.com/v1/chat/completions",
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    "Authorization": `Bearer ${settings.openai_api_key}`
+                },
+                body: JSON.stringify({
+                    model: settings.openai_model,
+                    messages: [
+                        {
+                            role: "system",
+                            content: "あなたは優秀な要約アシスタントです。日本語のX投稿を分析し、指定されたJSON形式で結果を返します。"
+                        },
+                        {
+                            role: "user",
+                            content: prompt
+                        }
+                    ],
+                    temperature: 0.3,
+                    max_tokens: settings.max_tokens
+                })
+            });
+        }
 
         if (response.status !== 200) {
             console.error("OpenAI API Error:", response.status, response.text);
@@ -64,7 +87,13 @@ async function callOpenAI(prompt, settings) {
         }
 
         const data = response.json;
-        return data.choices[0].message.content;
+
+        // レスポンス形式の違いを吸収
+        if (isGpt5) {
+            return data.output_text || data.output[0]?.content || "";
+        } else {
+            return data.choices[0].message.content;
+        }
     } catch (e) {
         console.error("OpenAI API call failed:", e);
         throw new Error("OpenAI API呼び出しに失敗しました: " + e.message);
