@@ -54,9 +54,7 @@ async function callResponsesAPI(prompt, settings) {
         body: JSON.stringify({
             model: settings.openai_model,
             instructions: "あなたは優秀な要約アシスタントです。日本語のX投稿を分析し、指定されたJSON形式で結果を返します。",
-            input: prompt,
-            temperature: 0.3,
-            max_output_tokens: settings.max_tokens
+            input: prompt
         })
     });
 
